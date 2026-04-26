@@ -8,6 +8,8 @@ import { ArrowLeft, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
 const EMPTY_FORM = {
   name: '', birthDate: '', sex: 'M',
   phone: '', address: '', maritalStatus: '', occupation: '', curp: '',
+  birthPlace: '', guardian: '', guardianRelation: '', referredBy: '',
+  interrogatorio: '', insurance: '', insuranceNumber: '',
 };
 
 export default function NewPatientPage() {
@@ -15,7 +17,8 @@ export default function NewPatientPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showExtra, setShowExtra] = useState(false);
+  const [showContact, setShowContact] = useState(false);
+  const [showClinical, setShowClinical] = useState(false);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
@@ -74,17 +77,17 @@ export default function NewPatientPage() {
             </div>
           </div>
 
-          {/* ── Datos adicionales (opcionales) ── */}
+          {/* ── Contacto y sociodemográficos ── */}
           <div className="border-t border-slate-100 pt-4">
-            <button type="button" onClick={() => setShowExtra(v => !v)}
+            <button type="button" onClick={() => setShowContact(v => !v)}
               className="flex items-center gap-2 text-sm font-medium text-slate-500
                          hover:text-navy transition-colors cursor-pointer w-full text-left">
-              <ChevronDown className={`w-4 h-4 transition-transform ${showExtra ? 'rotate-180' : ''}`} />
-              Datos de contacto y sociodemográficos
+              <ChevronDown className={`w-4 h-4 transition-transform ${showContact ? 'rotate-180' : ''}`} />
+              Contacto y sociodemográficos
               <span className="text-xs text-slate-400 font-normal ml-1">(opcionales)</span>
             </button>
 
-            {showExtra && (
+            {showContact && (
               <div className="mt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -108,11 +111,19 @@ export default function NewPatientPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label htmlFor="occupation" className="label">Ocupación</label>
-                  <input id="occupation" className="input"
-                    value={form.occupation} onChange={set('occupation')}
-                    placeholder="Ej: Empleado, Estudiante, Ama de casa…" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="occupation" className="label">Ocupación</label>
+                    <input id="occupation" className="input"
+                      value={form.occupation} onChange={set('occupation')}
+                      placeholder="Ej: Estudiante, Empleado…" />
+                  </div>
+                  <div>
+                    <label htmlFor="birthPlace" className="label">Lugar de nacimiento</label>
+                    <input id="birthPlace" className="input"
+                      value={form.birthPlace} onChange={set('birthPlace')}
+                      placeholder="Municipio, Estado" />
+                  </div>
                 </div>
 
                 <div>
@@ -127,6 +138,79 @@ export default function NewPatientPage() {
                   <input id="curp" className="input" maxLength={18}
                     value={form.curp} onChange={e => setForm(f => ({ ...f, curp: e.target.value.toUpperCase() }))}
                     placeholder="XXXX000000XXXXXXXX" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Datos clínicos de ingreso ── */}
+          <div className="border-t border-slate-100 pt-4">
+            <button type="button" onClick={() => setShowClinical(v => !v)}
+              className="flex items-center gap-2 text-sm font-medium text-slate-500
+                         hover:text-navy transition-colors cursor-pointer w-full text-left">
+              <ChevronDown className={`w-4 h-4 transition-transform ${showClinical ? 'rotate-180' : ''}`} />
+              Datos clínicos de ingreso
+              <span className="text-xs text-slate-400 font-normal ml-1">(opcionales)</span>
+            </button>
+
+            {showClinical && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="referredBy" className="label">Remitido por</label>
+                    <input id="referredBy" className="input"
+                      value={form.referredBy} onChange={set('referredBy')}
+                      placeholder="Médico, institución…" />
+                  </div>
+                  <div>
+                    <label htmlFor="interrogatorio" className="label">Tipo de interrogatorio</label>
+                    <select id="interrogatorio" className="input cursor-pointer"
+                      value={form.interrogatorio} onChange={set('interrogatorio') as any}>
+                      <option value="">Sin especificar</option>
+                      <option value="Directo">Directo</option>
+                      <option value="Indirecto">Indirecto</option>
+                      <option value="Mixto">Mixto</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="guardian" className="label">Familiar / Responsable</label>
+                    <input id="guardian" className="input"
+                      value={form.guardian} onChange={set('guardian')}
+                      placeholder="Nombre completo" />
+                  </div>
+                  <div>
+                    <label htmlFor="guardianRelation" className="label">Parentesco</label>
+                    <input id="guardianRelation" className="input"
+                      value={form.guardianRelation} onChange={set('guardianRelation')}
+                      placeholder="Madre, padre, tutor…" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="insurance" className="label">Derechohabiencia</label>
+                    <select id="insurance" className="input cursor-pointer"
+                      value={form.insurance} onChange={set('insurance') as any}>
+                      <option value="">Sin especificar</option>
+                      <option value="IMSS">IMSS</option>
+                      <option value="ISSSTE">ISSSTE</option>
+                      <option value="Pemex">Pemex</option>
+                      <option value="Sedena">Sedena</option>
+                      <option value="Semar">Semar</option>
+                      <option value="Seguro Popular">Seguro Popular</option>
+                      <option value="Ninguna">Ninguna</option>
+                      <option value="Otra">Otra</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="insuranceNumber" className="label">Número de afiliación</label>
+                    <input id="insuranceNumber" className="input"
+                      value={form.insuranceNumber} onChange={set('insuranceNumber')}
+                      placeholder="Número de afiliación" />
+                  </div>
                 </div>
               </div>
             )}

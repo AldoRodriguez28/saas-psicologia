@@ -66,9 +66,18 @@ export default function PatientDetailPage() {
               {patient.folio} · {age} años · {sexLabel}
               {patient.maritalStatus ? ` · ${patient.maritalStatus}` : ''}
             </p>
-            {(patient.occupation || patient.phone || patient.address) && (
+            {(patient.occupation || patient.phone || patient.address || patient.birthPlace) && (
               <p className="text-xs text-slate-400 mt-0.5">
-                {[patient.occupation, patient.phone, patient.address].filter(Boolean).join(' · ')}
+                {[patient.occupation, patient.birthPlace, patient.phone, patient.address].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            {(patient.guardian || patient.referredBy || patient.insurance) && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                {[
+                  patient.guardian ? `Responsable: ${patient.guardian}${patient.guardianRelation ? ` (${patient.guardianRelation})` : ''}` : null,
+                  patient.referredBy ? `Remitido por: ${patient.referredBy}` : null,
+                  patient.insurance ? `Derechohabiencia: ${patient.insurance}` : null,
+                ].filter(Boolean).join(' · ')}
               </p>
             )}
             <p className="text-xs text-slate-400 mt-0.5">

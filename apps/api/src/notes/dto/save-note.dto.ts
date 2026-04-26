@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsDateString, IsArray, IsOptional } from 'class-validator';
+import { IsString, IsEnum, IsDateString, IsArray, IsOptional, IsNumber } from 'class-validator';
 import { NoteType } from '@prisma/client';
 
 export class SaveNoteDto {
@@ -77,4 +77,28 @@ export class SaveNoteDto {
   @IsOptional()
   @IsString()
   desarrolloPsicobiologico?: string;
+
+  @IsOptional()
+  @IsString()
+  allergies?: string;
+
+  @IsOptional()
+  @IsString()
+  nextAppointment?: string;
+
+  @IsOptional()
+  @IsArray()
+  medications?: object[];
+
+  @IsOptional()
+  @IsArray()
+  familyMembers?: object[];
+
+  @IsOptional()
+  @IsNumber()
+  hamAScore?: number;
+
+  @IsOptional()
+  @IsNumber()
+  hamDScore?: number;
 }

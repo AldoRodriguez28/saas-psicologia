@@ -35,4 +35,32 @@ export class CreatePatientDto {
   @IsOptional()
   @IsString()
   curp?: string;
+
+  @IsOptional()
+  @IsString()
+  birthPlace?: string;
+
+  @IsOptional()
+  @IsString()
+  guardian?: string;
+
+  @IsOptional()
+  @IsString()
+  guardianRelation?: string;
+
+  @IsOptional()
+  @IsString()
+  referredBy?: string;
+
+  @IsOptional()
+  @IsString()
+  interrogatorio?: string;
+
+  @IsOptional()
+  @IsString()
+  insurance?: string;
+
+  @IsOptional()
+  @IsString()
+  insuranceNumber?: string;
 }

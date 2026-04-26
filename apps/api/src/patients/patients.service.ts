@@ -65,6 +65,13 @@ export class PatientsService {
         maritalStatus: dto.maritalStatus ?? '',
         occupation: dto.occupation ?? '',
         curp: dto.curp ?? '',
+        birthPlace: dto.birthPlace ?? '',
+        guardian: dto.guardian ?? '',
+        guardianRelation: dto.guardianRelation ?? '',
+        referredBy: dto.referredBy ?? '',
+        interrogatorio: dto.interrogatorio ?? '',
+        insurance: dto.insurance ?? '',
+        insuranceNumber: dto.insuranceNumber ?? '',
       },
     });
   }
