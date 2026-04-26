@@ -212,6 +212,12 @@ export class NotesService {
         psicometria: dto.psicometria ?? '',
         historiaPrevia: dto.historiaPrevia ?? '',
         desarrolloPsicobiologico: dto.desarrolloPsicobiologico ?? '',
+        allergies: dto.allergies ?? '',
+        nextAppointment: dto.nextAppointment ?? '',
+        medications: dto.medications ?? [],
+        familyMembers: dto.familyMembers ?? [],
+        hamAScore: dto.hamAScore ?? 0,
+        hamDScore: dto.hamDScore ?? 0,
       },
     });
 

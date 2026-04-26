@@ -37,17 +37,49 @@ export class NoteExporterService {
     const diagnoses: { code: string; name: string; detail?: string }[] =
       Array.isArray(note.diagnoses) ? note.diagnoses : [];
 
+    const familyMembers: { nombre?: string; parentesco?: string; edad?: string; domicilio?: string }[] =
+      Array.isArray(note.familyMembers) ? note.familyMembers : [];
+
+    const medications: { medicamento?: string; dosis?: string; frecuencia?: string; fecha?: string }[] =
+      Array.isArray(note.medications) ? note.medications : [];
+
     // Construir texto de impresión diagnóstica completa con códigos CIE-10
     const dxLines = diagnoses
       .map(d => `${d.code} – ${d.name}${d.detail ? ` (${d.detail})` : ''}`)
       .join('\n');
+
+    // Family members formatted table text
+    const familyText = familyMembers.length > 0
+      ? '\n\nNúcleo familiar:\n' + familyMembers
+          .filter(m => m.nombre)
+          .map(m => `• ${m.nombre} (${m.parentesco || '–'}) · ${m.edad || '–'} años · ${m.domicilio || '–'}`)
+          .join('\n')
+      : '';
+
+    // Medications formatted table text
+    const medsText = medications.length > 0
+      ? '\n\nMedicamentos actuales:\n' + medications
+          .filter(m => m.medicamento)
+          .map(m => `• ${m.medicamento} ${m.dosis || ''} – ${m.frecuencia || ''} (desde ${m.fecha || '–'})`)
+          .join('\n')
+      : '';
+
+    // HAM scores text
+    const hamText = (note.hamAScore > 0 || note.hamDScore > 0)
+      ? '\n\n' + [
+          note.hamAScore > 0 ? `HAM-A: ${note.hamAScore}/56` : '',
+          note.hamDScore > 0 ? `HAM-D: ${note.hamDScore}/52` : '',
+        ].filter(Boolean).join(' · ')
+      : '';
 
     const impresionDx = note.assessment
       + (dxLines ? `\n\nDiagnósticos CIE-10:\n${dxLines}` : '')
       + (note.prognosis ? `\n\nPronóstico:\n${note.prognosis}` : '');
 
     const planContent = (note.treatment ? `Tratamiento:\n${note.treatment}\n\n` : '')
-      + `Plan:\n${note.plan}`;
+      + `Plan:\n${note.plan}`
+      + (note.allergies ? `\n\nAlergias: ${note.allergies}` : '')
+      + (note.nextAppointment ? `\n\nPróxima cita: ${format(new Date(note.nextAppointment + 'T12:00:00'), "d 'de' MMMM 'de' yyyy", { locale: es })}` : '');
 
     // Campos del formulario → bookmarks del documento original
     const fields: Record<string, string> = {
@@ -76,13 +108,13 @@ export class NoteExporterService {
       ExamentMental:           note.objective,
       MotivoConsulta:          note.subjective,
       ImpresionDiagnostica:    impresionDx,
-      Psicometria:             note.psicometria || '—',
+      Psicometria:             (note.psicometria || '—') + hamText,
       DiagnosticoDiferencial:  dxLines || '—',
 
       // Solo en Ingreso
       ...(note.type === NoteType.INTAKE
         ? {
-            HistoriaPrevia:           note.historiaPrevia           || '(Por completar)',
+            HistoriaPrevia:           (note.historiaPrevia || '(Por completar)') + familyText + medsText,
             DesarrolloPsicobiologico: note.desarrolloPsicobiologico || '(Por completar)',
           }
         : {}),
