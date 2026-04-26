@@ -1,0 +1,18 @@
+-- AlterTable
+ALTER TABLE "Note" ADD COLUMN     "desarrolloPsicobiologico" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "fc" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "fr" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "historiaPrevia" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "hora" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "peso" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "psicometria" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "ta" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "talla" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "temperatura" TEXT NOT NULL DEFAULT '';
+
+-- AlterTable
+ALTER TABLE "Patient" ADD COLUMN     "address" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "curp" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "maritalStatus" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "occupation" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "phone" TEXT NOT NULL DEFAULT '';

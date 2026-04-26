@@ -1,0 +1,19 @@
+{
+  "name": "@psicologia/prisma",
+  "version": "1.0.0",
+  "scripts": {
+    "ensure-db": "node scripts/ensure-database.cjs",
+    "migrate": "node scripts/ensure-database.cjs && prisma migrate dev",
+    "generate": "prisma generate",
+    "studio": "prisma studio",
+    "migrate:deploy": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.10.0"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1",
+    "prisma": "^5.10.0"
+  }
+}

@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build / cache
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# Env (no subir secretos)
+.env
+.env.*
+!.env.example
+packages/*/.env
+
+# Logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+
+# Testing
+coverage/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json

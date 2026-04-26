@@ -1,0 +1,98 @@
+// packages/prisma/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum NoteType {
+  INTAKE
+  FOLLOWUP
+}
+
+enum Sex {
+  M
+  F
+  OTHER
+}
+
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  password    String
+  name        String
+  cedula      String?
+  institution String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  patients    Patient[]
+  usageLogs   UsageLog[]
+}
+
+model UsageLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteType     NoteType
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  cachedTokens Int      @default(0)
+  costUsd      Decimal  @db.Decimal(10, 8)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Patient {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folio         String
+  name          String
+  birthDate     DateTime
+  sex           Sex
+  phone         String   @default("")
+  address       String   @default("")
+  maritalStatus String   @default("")
+  occupation    String   @default("")
+  curp          String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  notes         Note[]
+
+  @@unique([userId, folio])
+}
+
+model Note {
+  id                        String   @id @default(cuid())
+  patientId                 String
+  patient                   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type                      NoteType
+  rawNote                   String   @db.Text
+  subjective                String   @db.Text
+  objective                 String   @db.Text
+  assessment                String   @db.Text
+  plan                      String   @db.Text
+  treatment                 String   @db.Text @default("")
+  prognosis                 String   @db.Text @default("")
+  diagnoses                 Json
+  summary                   String
+  consultDate               DateTime
+  hora                      String   @default("")
+  peso                      String   @default("")
+  talla                     String   @default("")
+  ta                        String   @default("")
+  fc                        String   @default("")
+  fr                        String   @default("")
+  temperatura               String   @default("")
+  psicometria               String   @db.Text @default("")
+  historiaPrevia            String   @db.Text @default("")
+  desarrolloPsicobiologico  String   @db.Text @default("")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
