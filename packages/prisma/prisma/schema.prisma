@@ -49,21 +49,28 @@ model UsageLog {
 }
 
 model Patient {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  folio         String
-  name          String
-  birthDate     DateTime
-  sex           Sex
-  phone         String   @default("")
-  address       String   @default("")
-  maritalStatus String   @default("")
-  occupation    String   @default("")
-  curp          String   @default("")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  notes         Note[]
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folio           String
+  name            String
+  birthDate       DateTime
+  sex             Sex
+  phone           String   @default("")
+  address         String   @default("")
+  maritalStatus   String   @default("")
+  occupation      String   @default("")
+  curp            String   @default("")
+  birthPlace      String   @default("")
+  guardian        String   @default("")
+  guardianRelation String  @default("")
+  referredBy      String   @default("")
+  interrogatorio  String   @default("")
+  insurance       String   @default("")
+  insuranceNumber String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  notes           Note[]
 
   @@unique([userId, folio])
 }
@@ -93,6 +100,12 @@ model Note {
   psicometria               String   @db.Text @default("")
   historiaPrevia            String   @db.Text @default("")
   desarrolloPsicobiologico  String   @db.Text @default("")
+  allergies                 String   @db.Text @default("")
+  nextAppointment           String   @default("")
+  medications               Json     @default("[]")
+  familyMembers             Json     @default("[]")
+  hamAScore                 Int      @default(0)
+  hamDScore                 Int      @default(0)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 }

@@ -93,6 +93,13 @@ export interface CreatePatientData {
   maritalStatus?: string;
   occupation?: string;
   curp?: string;
+  birthPlace?: string;
+  guardian?: string;
+  guardianRelation?: string;
+  referredBy?: string;
+  interrogatorio?: string;
+  insurance?: string;
+  insuranceNumber?: string;
 }
 
 export interface GenerateNoteData {
@@ -121,6 +128,12 @@ export interface SaveNoteData extends GenerateNoteData {
   psicometria?: string;
   historiaPrevia?: string;
   desarrolloPsicobiologico?: string;
+  allergies?: string;
+  nextAppointment?: string;
+  medications?: object[];
+  familyMembers?: object[];
+  hamAScore?: number;
+  hamDScore?: number;
 }
 
 export interface Diagnosis {

@@ -6,7 +6,7 @@ import { patientsApi, notesApi } from '@/lib/api';
 import { format, differenceInYears } from 'date-fns';
 import { parseLocalDate } from '@/lib/dates';
 import { es } from 'date-fns/locale';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 
 type Step = 'patient' | 'form' | 'review' | 'saved';
 
@@ -18,17 +18,11 @@ const STANDARD_PLAN_SUFFIX =
   '• Acudir a centro de salud para recibir atención integral';
 
 interface GeneratedNote {
-  subjective: string;
-  objective: string;
-  assessment: string;
-  treatment: string;
-  prognosis: string;
-  plan: string;
+  subjective: string; objective: string; assessment: string;
+  treatment: string; prognosis: string; plan: string;
   diagnoses: { code: string; name: string; detail: string }[];
   summary: string;
-  psicometria: string;
-  historiaPrevia: string;
-  desarrolloPsicobiologico: string;
+  psicometria: string; historiaPrevia: string; desarrolloPsicobiologico: string;
 }
 
 interface VitalSigns {
@@ -36,10 +30,20 @@ interface VitalSigns {
   ta: string; fc: string; fr: string; temperatura: string;
 }
 
+interface FamilyMember {
+  nombre: string; parentesco: string; edad: string; domicilio: string;
+}
+
+interface Medication {
+  medicamento: string; dosis: string; frecuencia: string; fecha: string;
+}
+
 const EMPTY_VITALS: VitalSigns = { hora: '', peso: '', talla: '', ta: '', fc: '', fr: '', temperatura: '' };
+const EMPTY_FAMILY: FamilyMember = { nombre: '', parentesco: '', edad: '', domicilio: '' };
+const EMPTY_MED: Medication = { medicamento: '', dosis: '', frecuencia: '', fecha: '' };
 
 const SOAP_FIELDS = [
-  { key: 'subjective',  label: 'S',  name: 'Subjetivo',    color: 'bg-blue-50 text-blue-700',     border: 'border-blue-200' },
+  { key: 'subjective',  label: 'S',  name: 'Subjetivo',    color: 'bg-blue-50 text-blue-700',      border: 'border-blue-200' },
   { key: 'objective',   label: 'O',  name: 'Objetivo',     color: 'bg-purple-50 text-purple-700',  border: 'border-purple-200' },
   { key: 'assessment',  label: 'A',  name: 'Diagnóstico',  color: 'bg-amber-50 text-amber-700',    border: 'border-amber-200' },
   { key: 'treatment',   label: 'T',  name: 'Tratamiento',  color: 'bg-rose-50 text-rose-700',      border: 'border-rose-200' },
@@ -47,24 +51,88 @@ const SOAP_FIELDS = [
   { key: 'plan',        label: 'P',  name: 'Plan',         color: 'bg-emerald-50 text-emerald-700', border: 'border-emerald-200' },
 ];
 
+// HAM-A items (14 items, 0–4 each)
+const HAM_A_ITEMS = [
+  'Humor ansioso',
+  'Tensión',
+  'Miedos',
+  'Insomnio',
+  'Intelectual (cognitivo)',
+  'Humor depresivo',
+  'Síntomas somáticos musculares',
+  'Síntomas somáticos sensoriales',
+  'Síntomas cardiovasculares',
+  'Síntomas respiratorios',
+  'Síntomas gastrointestinales',
+  'Síntomas genitourinarios',
+  'Síntomas del SNA',
+  'Comportamiento en la entrevista',
+];
+
+// HAM-D items with max score
+const HAM_D_ITEMS: { label: string; max: number }[] = [
+  { label: 'Humor depresivo', max: 4 },
+  { label: 'Sentimientos de culpa', max: 4 },
+  { label: 'Suicidio', max: 4 },
+  { label: 'Insomnio precoz', max: 2 },
+  { label: 'Insomnio medio', max: 2 },
+  { label: 'Insomnio tardío', max: 2 },
+  { label: 'Trabajo y actividades', max: 4 },
+  { label: 'Inhibición', max: 4 },
+  { label: 'Agitación', max: 4 },
+  { label: 'Ansiedad psíquica', max: 4 },
+  { label: 'Ansiedad somática', max: 4 },
+  { label: 'Síntomas somáticos gastrointestinales', max: 2 },
+  { label: 'Síntomas somáticos generales', max: 2 },
+  { label: 'Síntomas genitales', max: 2 },
+  { label: 'Hipocondría', max: 4 },
+  { label: 'Pérdida de peso', max: 2 },
+  { label: 'Insight', max: 2 },
+];
+
+function hamAInterpretation(score: number) {
+  if (score <= 17) return { label: 'Leve', color: 'text-emerald-600' };
+  if (score <= 24) return { label: 'Moderada', color: 'text-amber-600' };
+  if (score <= 30) return { label: 'Moderado-Severa', color: 'text-orange-600' };
+  return { label: 'Severa', color: 'text-red-600' };
+}
+
+function hamDInterpretation(score: number) {
+  if (score <= 7)  return { label: 'Normal', color: 'text-emerald-600' };
+  if (score <= 13) return { label: 'Leve', color: 'text-yellow-600' };
+  if (score <= 18) return { label: 'Moderada', color: 'text-amber-600' };
+  if (score <= 22) return { label: 'Severa', color: 'text-orange-600' };
+  return { label: 'Muy Severa', color: 'text-red-600' };
+}
+
 export default function NewNotePage() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const [step, setStep]                     = useState<Step>('patient');
-  const [patients, setPatients]             = useState<any[]>([]);
+  const [step, setStep]                       = useState<Step>('patient');
+  const [patients, setPatients]               = useState<any[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [search, setSearch]                 = useState('');
-  const [noteType, setNoteType]             = useState<'INTAKE' | 'FOLLOWUP'>('INTAKE');
-  const [rawNote, setRawNote]               = useState('');
-  const [consultDate, setConsultDate]       = useState(new Date().toISOString().split('T')[0]);
-  const [vitals, setVitals]                 = useState<VitalSigns>(EMPTY_VITALS);
-  const [showVitals, setShowVitals]         = useState(false);
-  const [generated, setGenerated]           = useState<GeneratedNote | null>(null);
-  const [edited, setEdited]                 = useState<GeneratedNote | null>(null);
-  const [generating, setGenerating]         = useState(false);
-  const [genError, setGenError]             = useState('');
-  const [savedId, setSavedId]               = useState<string | null>(null);
+  const [search, setSearch]                   = useState('');
+  const [noteType, setNoteType]               = useState<'INTAKE' | 'FOLLOWUP'>('INTAKE');
+  const [rawNote, setRawNote]                 = useState('');
+  const [consultDate, setConsultDate]         = useState(new Date().toISOString().split('T')[0]);
+  const [vitals, setVitals]                   = useState<VitalSigns>(EMPTY_VITALS);
+  const [showVitals, setShowVitals]           = useState(false);
+  const [familyMembers, setFamilyMembers]     = useState<FamilyMember[]>([{ ...EMPTY_FAMILY }]);
+  const [showFamily, setShowFamily]           = useState(false);
+  const [medications, setMedications]         = useState<Medication[]>([{ ...EMPTY_MED }]);
+  const [showMeds, setShowMeds]               = useState(false);
+  const [allergies, setAllergies]             = useState('');
+  const [nextAppointment, setNextAppointment] = useState('');
+  const [hamAScores, setHamAScores]           = useState<number[]>(Array(14).fill(0));
+  const [showHamA, setShowHamA]               = useState(false);
+  const [hamDScores, setHamDScores]           = useState<number[]>(Array(17).fill(0));
+  const [showHamD, setShowHamD]               = useState(false);
+  const [generated, setGenerated]             = useState<GeneratedNote | null>(null);
+  const [edited, setEdited]                   = useState<GeneratedNote | null>(null);
+  const [generating, setGenerating]           = useState(false);
+  const [genError, setGenError]               = useState('');
+  const [savedId, setSavedId]                 = useState<string | null>(null);
 
   useEffect(() => {
     patientsApi.list().then(r => {
@@ -90,9 +158,22 @@ export default function NewNotePage() {
     setStep('form');
   };
 
+  const hamATotal = hamAScores.reduce((a, b) => a + b, 0);
+  const hamDTotal = hamDScores.reduce((a, b) => a + b, 0);
+
   const handleGenerate = async () => {
     if (!rawNote.trim()) return;
     setGenerating(true); setGenError('');
+
+    // Build psicometria auto-text from HAM scores if entered
+    const hamLines: string[] = [];
+    if (hamATotal > 0) {
+      hamLines.push(`HAM-A: ${hamATotal}/56 — Ansiedad ${hamAInterpretation(hamATotal).label}`);
+    }
+    if (hamDTotal > 0) {
+      hamLines.push(`HAM-D: ${hamDTotal}/52 — Depresión ${hamDInterpretation(hamDTotal).label}`);
+    }
+
     try {
       const { data } = await notesApi.generate({
         patientId: selectedPatient.id, type: noteType, rawNote, consultDate,
@@ -102,7 +183,9 @@ export default function NewNotePage() {
         treatment: data.treatment || '',
         prognosis: data.prognosis || '',
         plan: (data.plan || '') + STANDARD_PLAN_SUFFIX,
-        psicometria: data.psicometria || '',
+        psicometria: hamLines.length > 0
+          ? hamLines.join('\n') + (data.psicometria ? '\n' + data.psicometria : '')
+          : (data.psicometria || ''),
         historiaPrevia: data.historiaPrevia || '',
         desarrolloPsicobiologico: data.desarrolloPsicobiologico || '',
       };
@@ -120,11 +203,19 @@ export default function NewNotePage() {
     if (!edited) return;
     try {
       const planWithoutSuffix = edited.plan.replace(STANDARD_PLAN_SUFFIX, '').trim();
+      const activeFamilyMembers = familyMembers.filter(m => m.nombre.trim());
+      const activeMedications   = medications.filter(m => m.medicamento.trim());
       const { data } = await notesApi.save({
         patientId: selectedPatient.id, type: noteType, rawNote, consultDate,
         ...edited,
         plan: planWithoutSuffix,
         ...vitals,
+        allergies,
+        nextAppointment,
+        familyMembers: activeFamilyMembers,
+        medications: activeMedications,
+        hamAScore: hamATotal,
+        hamDScore: hamDTotal,
       });
       setSavedId(data.id);
       setStep('saved');
@@ -138,6 +229,12 @@ export default function NewNotePage() {
 
   const setVital = (k: keyof VitalSigns) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setVitals(v => ({ ...v, [k]: e.target.value }));
+
+  const updateFamily = (i: number, k: keyof FamilyMember, v: string) =>
+    setFamilyMembers(arr => arr.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
+
+  const updateMed = (i: number, k: keyof Medication, v: string) =>
+    setMedications(arr => arr.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
 
   const age = selectedPatient
     ? differenceInYears(new Date(), new Date(selectedPatient.birthDate))
@@ -248,55 +345,184 @@ export default function NewNotePage() {
             <input className="input max-w-xs" type="date" value={consultDate} onChange={e => setConsultDate(e.target.value)} />
           </div>
 
-          {/* ── Signos vitales (colapsable) ── */}
-          <div className="mb-5 border border-slate-200 rounded-xl overflow-hidden">
-            <button type="button" onClick={() => setShowVitals(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium
-                         text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">
-              <span className="flex items-center gap-2">
-                <span className="text-base">🩺</span> Signos vitales y somatometría
-                <span className="text-xs text-slate-400 font-normal">(opcional)</span>
-              </span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showVitals ? 'rotate-180' : ''}`} />
-            </button>
+          {/* ── Signos vitales ── */}
+          <CollapsibleSection
+            icon="🩺" title="Signos vitales y somatometría" open={showVitals}
+            onToggle={() => setShowVitals(v => !v)}>
+            <div className="grid grid-cols-4 gap-3 mb-3">
+              <div><label className="label text-xs">Hora</label><input className="input text-sm" type="time" value={vitals.hora} onChange={setVital('hora')} /></div>
+              <div><label className="label text-xs">Peso (kg)</label><input className="input text-sm" placeholder="70" value={vitals.peso} onChange={setVital('peso')} /></div>
+              <div><label className="label text-xs">Talla (m)</label><input className="input text-sm" placeholder="1.70" value={vitals.talla} onChange={setVital('talla')} /></div>
+              <div><label className="label text-xs">T°C</label><input className="input text-sm" placeholder="36.5" value={vitals.temperatura} onChange={setVital('temperatura')} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="label text-xs">TA (mmHg)</label><input className="input text-sm" placeholder="120/80" value={vitals.ta} onChange={setVital('ta')} /></div>
+              <div><label className="label text-xs">FC (x/min)</label><input className="input text-sm" placeholder="72" value={vitals.fc} onChange={setVital('fc')} /></div>
+              <div><label className="label text-xs">FR (x/min)</label><input className="input text-sm" placeholder="16" value={vitals.fr} onChange={setVital('fr')} /></div>
+            </div>
+          </CollapsibleSection>
 
-            {showVitals && (
-              <div className="px-4 pb-4 pt-1 border-t border-slate-100 space-y-3">
-                <div className="grid grid-cols-4 gap-3">
-                  <div>
-                    <label className="label text-xs">Hora</label>
-                    <input className="input text-sm" type="time" value={vitals.hora} onChange={setVital('hora')} />
-                  </div>
-                  <div>
-                    <label className="label text-xs">Peso (kg)</label>
-                    <input className="input text-sm" placeholder="70" value={vitals.peso} onChange={setVital('peso')} />
-                  </div>
-                  <div>
-                    <label className="label text-xs">Talla (m)</label>
-                    <input className="input text-sm" placeholder="1.70" value={vitals.talla} onChange={setVital('talla')} />
-                  </div>
-                  <div>
-                    <label className="label text-xs">T°C</label>
-                    <input className="input text-sm" placeholder="36.5" value={vitals.temperatura} onChange={setVital('temperatura')} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="label text-xs">TA (mmHg)</label>
-                    <input className="input text-sm" placeholder="120/80" value={vitals.ta} onChange={setVital('ta')} />
-                  </div>
-                  <div>
-                    <label className="label text-xs">FC (x/min)</label>
-                    <input className="input text-sm" placeholder="72" value={vitals.fc} onChange={setVital('fc')} />
-                  </div>
-                  <div>
-                    <label className="label text-xs">FR (x/min)</label>
-                    <input className="input text-sm" placeholder="16" value={vitals.fr} onChange={setVital('fr')} />
-                  </div>
-                </div>
+          {/* ── Núcleo familiar ── */}
+          <CollapsibleSection
+              icon="👨‍👩‍👧" title="Núcleo familiar" open={showFamily}
+              onToggle={() => setShowFamily(v => !v)}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      {['Nombre', 'Parentesco', 'Edad', 'Domicilio'].map(h => (
+                        <th key={h} className="text-left pb-2 pr-2 text-slate-500 font-semibold">{h}</th>
+                      ))}
+                      <th className="w-6" />
+                    </tr>
+                  </thead>
+                  <tbody className="space-y-1">
+                    {familyMembers.map((row, i) => (
+                      <tr key={i}>
+                        <td className="pr-2 py-1"><input className="input text-xs" placeholder="Nombre" value={row.nombre} onChange={e => updateFamily(i, 'nombre', e.target.value)} /></td>
+                        <td className="pr-2 py-1"><input className="input text-xs" placeholder="Madre, padre…" value={row.parentesco} onChange={e => updateFamily(i, 'parentesco', e.target.value)} /></td>
+                        <td className="pr-2 py-1"><input className="input text-xs w-16" placeholder="35" value={row.edad} onChange={e => updateFamily(i, 'edad', e.target.value)} /></td>
+                        <td className="pr-2 py-1"><input className="input text-xs" placeholder="Mismo, otro…" value={row.domicilio} onChange={e => updateFamily(i, 'domicilio', e.target.value)} /></td>
+                        <td className="py-1">
+                          {familyMembers.length > 1 && (
+                            <button type="button" onClick={() => setFamilyMembers(arr => arr.filter((_, idx) => idx !== i))}
+                              className="text-slate-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+              <button type="button" onClick={() => setFamilyMembers(arr => [...arr, { ...EMPTY_FAMILY }])}
+                className="mt-2 flex items-center gap-1.5 text-xs text-navy hover:text-navy/70">
+                <Plus className="w-3.5 h-3.5" /> Agregar familiar
+              </button>
+            </CollapsibleSection>
+
+          {/* ── Medicamentos actuales ── */}
+          <CollapsibleSection
+            icon="💊" title="Medicamentos actuales" open={showMeds}
+            onToggle={() => setShowMeds(v => !v)}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    {['Medicamento', 'Dosis', 'Frecuencia', 'Desde'].map(h => (
+                      <th key={h} className="text-left pb-2 pr-2 text-slate-500 font-semibold">{h}</th>
+                    ))}
+                    <th className="w-6" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {medications.map((row, i) => (
+                    <tr key={i}>
+                      <td className="pr-2 py-1"><input className="input text-xs" placeholder="Sertralina" value={row.medicamento} onChange={e => updateMed(i, 'medicamento', e.target.value)} /></td>
+                      <td className="pr-2 py-1"><input className="input text-xs w-20" placeholder="50 mg" value={row.dosis} onChange={e => updateMed(i, 'dosis', e.target.value)} /></td>
+                      <td className="pr-2 py-1"><input className="input text-xs" placeholder="Cada 24h" value={row.frecuencia} onChange={e => updateMed(i, 'frecuencia', e.target.value)} /></td>
+                      <td className="pr-2 py-1"><input className="input text-xs" placeholder="Ene 2025" value={row.fecha} onChange={e => updateMed(i, 'fecha', e.target.value)} /></td>
+                      <td className="py-1">
+                        {medications.length > 1 && (
+                          <button type="button" onClick={() => setMedications(arr => arr.filter((_, idx) => idx !== i))}
+                            className="text-slate-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" onClick={() => setMedications(arr => [...arr, { ...EMPTY_MED }])}
+              className="mt-2 flex items-center gap-1.5 text-xs text-navy hover:text-navy/70">
+              <Plus className="w-3.5 h-3.5" /> Agregar medicamento
+            </button>
+          </CollapsibleSection>
+
+          {/* ── Alergias + Próxima cita ── */}
+          <div className="mb-5 grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Alergias</label>
+              <input className="input" placeholder="Sin alergias conocidas / penicilina…" value={allergies} onChange={e => setAllergies(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Próxima cita</label>
+              <input className="input" type="date" value={nextAppointment} onChange={e => setNextAppointment(e.target.value)} />
+            </div>
           </div>
+
+          {/* ── HAM-A (INTAKE) ── */}
+          {noteType === 'INTAKE' && (
+            <CollapsibleSection
+              icon="📊" title={`Escala de Ansiedad Hamilton (HAM-A)${hamATotal > 0 ? ` · ${hamATotal}/56 ${hamAInterpretation(hamATotal).label}` : ''}`}
+              open={showHamA} onToggle={() => setShowHamA(v => !v)}>
+              <div className="space-y-2">
+                {HAM_A_ITEMS.map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400 w-4 text-right">{i + 1}</span>
+                    <span className="text-xs text-slate-700 flex-1">{item}</span>
+                    <div className="flex gap-1">
+                      {[0, 1, 2, 3, 4].map(val => (
+                        <button key={val} type="button"
+                          onClick={() => setHamAScores(s => s.map((v, idx) => idx === i ? val : v))}
+                          className={`w-7 h-7 rounded-lg text-xs font-semibold transition-all ${
+                            hamAScores[i] === val
+                              ? 'bg-navy text-white'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          }`}>
+                          {val}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {hamATotal > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-600">Total: {hamATotal}/56</span>
+                  <span className={`text-sm font-bold ${hamAInterpretation(hamATotal).color}`}>
+                    Ansiedad {hamAInterpretation(hamATotal).label}
+                  </span>
+                </div>
+              )}
+            </CollapsibleSection>
+          )}
+
+          {/* ── HAM-D (INTAKE) ── */}
+          {noteType === 'INTAKE' && (
+            <CollapsibleSection
+              icon="📉" title={`Escala de Depresión Hamilton (HAM-D)${hamDTotal > 0 ? ` · ${hamDTotal}/52 ${hamDInterpretation(hamDTotal).label}` : ''}`}
+              open={showHamD} onToggle={() => setShowHamD(v => !v)}>
+              <div className="space-y-2">
+                {HAM_D_ITEMS.map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400 w-4 text-right">{i + 1}</span>
+                    <span className="text-xs text-slate-700 flex-1">{item.label}</span>
+                    <div className="flex gap-1">
+                      {Array.from({ length: item.max + 1 }, (_, val) => (
+                        <button key={val} type="button"
+                          onClick={() => setHamDScores(s => s.map((v, idx) => idx === i ? val : v))}
+                          className={`w-7 h-7 rounded-lg text-xs font-semibold transition-all ${
+                            hamDScores[i] === val
+                              ? 'bg-navy text-white'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          }`}>
+                          {val}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {hamDTotal > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-600">Total: {hamDTotal}/52</span>
+                  <span className={`text-sm font-bold ${hamDInterpretation(hamDTotal).color}`}>
+                    Depresión {hamDInterpretation(hamDTotal).label}
+                  </span>
+                </div>
+              )}
+            </CollapsibleSection>
+          )}
 
           {/* Raw note */}
           <div className="mb-5">
@@ -356,17 +582,17 @@ export default function NewNotePage() {
             ✎ Todos los campos son editables. Haz clic en el texto para corregir antes de guardar.
           </p>
 
-          {/* ── Signos vitales resumen (si hay datos) ── */}
+          {/* Vitals summary */}
           {(vitals.peso || vitals.ta || vitals.fc || vitals.hora) && (
             <div className="card mb-4 bg-slate-50">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Signos vitales registrados</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Signos vitales</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-                {vitals.hora      && <span>Hora: <strong>{vitals.hora}</strong></span>}
-                {vitals.peso      && <span>Peso: <strong>{vitals.peso} kg</strong></span>}
-                {vitals.talla     && <span>Talla: <strong>{vitals.talla} m</strong></span>}
-                {vitals.ta        && <span>TA: <strong>{vitals.ta} mmHg</strong></span>}
-                {vitals.fc        && <span>FC: <strong>{vitals.fc} x/min</strong></span>}
-                {vitals.fr        && <span>FR: <strong>{vitals.fr} x/min</strong></span>}
+                {vitals.hora       && <span>Hora: <strong>{vitals.hora}</strong></span>}
+                {vitals.peso       && <span>Peso: <strong>{vitals.peso} kg</strong></span>}
+                {vitals.talla      && <span>Talla: <strong>{vitals.talla} m</strong></span>}
+                {vitals.ta         && <span>TA: <strong>{vitals.ta} mmHg</strong></span>}
+                {vitals.fc         && <span>FC: <strong>{vitals.fc} x/min</strong></span>}
+                {vitals.fr         && <span>FR: <strong>{vitals.fr} x/min</strong></span>}
                 {vitals.temperatura && <span>T°C: <strong>{vitals.temperatura}</strong></span>}
               </div>
             </div>
@@ -387,7 +613,7 @@ export default function NewNotePage() {
             ))}
           </div>
 
-          {/* ── Historia previa + Desarrollo psicobiológico (solo Ingreso) ── */}
+          {/* HP + DP (INTAKE only) */}
           {noteType === 'INTAKE' && (
             <div className="space-y-3 mb-5">
               <div className="rounded-xl border border-indigo-200 overflow-hidden">
@@ -414,7 +640,7 @@ export default function NewNotePage() {
             </div>
           )}
 
-          {/* ── Psicometría ── */}
+          {/* Psicometría */}
           <div className="rounded-xl border border-teal/30 overflow-hidden mb-5">
             <div className="flex items-center gap-2 px-4 py-2 bg-teal/8 text-teal">
               <span className="font-bold text-sm">Psi</span>
@@ -425,6 +651,17 @@ export default function NewNotePage() {
               value={edited.psicometria}
               onChange={e => updateField('psicometria', e.target.value)} />
           </div>
+
+          {/* Alergias + Próxima cita summary */}
+          {(allergies || nextAppointment) && (
+            <div className="card mb-5 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Cierre</p>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-600">
+                {allergies      && <span>Alergias: <strong>{allergies}</strong></span>}
+                {nextAppointment && <span>Próxima cita: <strong>{format(parseLocalDate(nextAppointment), "d 'de' MMMM, yyyy", { locale: es })}</strong></span>}
+              </div>
+            </div>
+          )}
 
           {/* Diagnoses */}
           <div className="card mb-5">
@@ -468,8 +705,40 @@ export default function NewNotePage() {
               setStep('patient'); setSelectedPatient(null);
               setRawNote(''); setGenerated(null); setEdited(null);
               setVitals(EMPTY_VITALS); setShowVitals(false);
+              setFamilyMembers([{ ...EMPTY_FAMILY }]); setShowFamily(false);
+              setMedications([{ ...EMPTY_MED }]); setShowMeds(false);
+              setAllergies(''); setNextAppointment('');
+              setHamAScores(Array(14).fill(0)); setHamDScores(Array(17).fill(0));
+              setShowHamA(false); setShowHamD(false);
             }} className="btn btn-secondary">Nueva nota</button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  icon, title, open, onToggle, children
+}: {
+  icon: string; title: string; open: boolean;
+  onToggle: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-5 border border-slate-200 rounded-xl overflow-hidden">
+      <button type="button" onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium
+                   text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">
+        <span className="flex items-center gap-2">
+          <span className="text-base">{icon}</span>
+          <span>{title}</span>
+          <span className="text-xs text-slate-400 font-normal">(opcional)</span>
+        </span>
+        <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-1 border-t border-slate-100">
+          {children}
         </div>
       )}
     </div>
